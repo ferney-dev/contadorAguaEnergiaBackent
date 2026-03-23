@@ -1,0 +1,186 @@
+#-------------------------------- Backend de Sistema de Gestión de Contadores de Agua y Energía------------------------------
+
+Backend desarrollado con **FastAPI, SQLAlchemy y MySQL**, diseñado para registrar y gestionar
+lecturas diarias de consumo de agua y energía, permitiendo el análisis histórico y control de metas mensuales.
+
+
+#--------------------------------- Descripción del Proyecto  ------------------------------------------------
+
+Este sistema permite:
+
+*  Registrar lecturas diarias de agua.
+*  Registrar lecturas diarias de energía.
+*  Gestionar metas mensuales.
+*  Consultar históricos de consumo.
+*  Integrarse con un frontend desarrollado en Next.js.
+
+El backend está desplegado en Render y utiliza MySQL como base de datos remota en hostinger.
+
+
+##--------------------------------  Arquitectura del Sistema------------------------------------------------
+
+BACKEND_CONTADORES/
+│
+├── app/
+│   ├── main.py
+│   ├── config.py
+│   ├── database/sesion.py
+│   ├── models/consumo_agua.py - consumo_energia.py - meta.py
+│   ├── routers/agua.py - energia.py - metas.py
+│   ├── schemas/lectura_manual.py
+│   
+├── .env
+├── requirements.txt
+└── venv/
+
+##-------------------------------- Descripcion de Carpetas y Archivos---------------------------------------------------
+
+------------ ------------------ 📁 Carpeta app/---------------------------------------------------------------------------
+
+Aquí está el corazón del backend.
+Contiene todo lo que hace funcionar el sistema.
+
+
+---------------------------------📄  main.py – El punto de inicio-------------------------
+
+Este archivo es donde todo comienza.
+
+Aquí se crea la aplicación principal y se conectan todas las partes del sistema.
+
+En palabras simples:
+ 
+*  Es el archivo que arranca el backend.
+*  Sin este archivo, el servidor no puede funcionar.
+
+También es el archivo que Render ejecuta cuando el sistema se despliega.
+
+------------------------- 📄 config.py----------------------------
+
+Este archivo se encarga de leer configuraciones importantes del sistema.
+
+
+* Datos de conexión a la base de datos.
+
+* Claves secretas.
+
+* Parámetros generales.
+
+* La idea es no mezclar información sensible dentro del código principal.
+
+Esto hace que el proyecto sea más seguro y más organizado.
+
+
+
+---------------------- 📁 Carpeta database/ session.py----------------------------------
+
+Esta carpeta se encarga de gestionar la conexión entre el backend y la base de datos del sistema.
+
+Aquí se configuran los elementos necesarios para que la aplicación pueda guardar, 
+consultar y actualizar la información relacionada con el consumo de agua y energía.
+
+Dentro de esta carpeta se define:
+
+*La configuración de conexión a la base de datos.
+*La creación del motor de conexión.
+*La gestión de sesiones para interactuar con la base de datos.
+*La carga de variables de configuración desde el archivo .env.
+*El sistema puede conectarse tanto a una base de datos local durante el desarrollo como a una
+base de datos en producción, dependiendo de la configuración definida en las variables de entorno.
+Esto permite que el backend pueda acceder a la base de datos de forma segura y organizada para manejar toda 
+la información del sistema.
+
+
+---------------------- 📁 Carpeta models/---------------------------
+
+La carpeta models contiene los modelos de datos del sistema.
+Aquí se definen las estructuras de las tablas que se utilizan en la base de datos.
+
+Cada archivo representa una tabla donde se almacena la información del sistema relacionada con 
+el consumo de agua, energía y metas de consumo.Estos modelos permiten organizar los datos de forma estructurada 
+para que el sistema pueda guardar, consultar y actualizar la información correctamente.
+
+----------------Archivos principales 
+
+consumo_agua.py
+Define la estructura de la tabla donde se almacenan las lecturas de consumo de agua registradas en el sistema.
+
+consumo_energia.py
+Define la tabla donde se guardan las lecturas de consumo de energía eléctrica.
+
+comparativo_agua.py
+Contiene la estructura de la tabla utilizada para analizar y comparar el consumo de agua entre diferentes sedes o puntos de servicio.
+
+comparativo_energia.py
+Define la tabla utilizada para comparar el consumo de energía eléctrica entre diferentes ubicaciones.
+
+meta.py
+Define la tabla donde se almacenan las metas o límites de consumo de agua y energía, 
+las cuales sirven para evaluar si el consumo está dentro de los valores esperados.
+
+
+---------------------- 📁schemas/  -----------------------------------
+
+La carpeta schemas contiene las estructuras que se utilizan para validar y organizar los datos que llegan o salen de la API.
+Estas estructuras permiten asegurarse de que la información enviada al sistema tenga el formato correcto antes de ser procesada o guardada en la base de datos.
+En otras palabras, los schemas funcionan como un modelo de validación de datos que ayuda a mantener la información ordenada y evitar errores en el sistema.
+
+
+lectura_manual.py
+Este archivo define la estructura de los datos que se utilizan para registrar lecturas manuales de los contadores.
+
+Permite enviar información como:
+*bodega: ubicación donde se encuentra el contador.
+*lectura: valor registrado del contador.
+*tipo: tipo de consumo (agua o energía).
+*fecha: día en que se realizó la lectura.
+
+
+
+---------------------- 📁routers/ ------------------------------------
+
+La carpeta routers contiene las rutas o endpoints de la API del sistema.
+Aquí se definen las funciones que permiten que el frontend se comunique con el backend para consultar,
+registrar, actualizar o eliminar información relacionada con el consumo de agua y energía.
+Cada archivo dentro de esta carpeta representa un conjunto de rutas encargadas de manejar diferentes
+módulos del sistema, como por ejemplo:
+
+Registro de consumos de agua.
+Registro de consumos de energía.
+Comparativos de consumo.
+Metas de consumo.
+
+
+-----------------------📄 .env  -------------------------------------------
+
+El archivo .env contiene las variables de configuración del sistema, especialmente información sensible 
+relacionada con la conexión a la base de datos.
+
+En este archivo se definen datos como:
+*Usuario de la base de datos
+*Contraseña
+*Dirección del servidor
+*Puerto de conexión
+*Nombre de la base de datos
+
+Esto permite que el sistema pueda conectarse a la base de datos sin exponer esta información directamente en el código.
+
+Además, el archivo incluye configuraciones para diferentes entornos, como:
+Producción: conexión a la base de datos en el servidor.
+Desarrollo: conexión a la base de datos local utilizada para pruebas.
+
+
+--------------------📄 requirements.txt -----------------------------
+
+Este archivo contiene la lista de librerías que utiliza el backend del sistema para funcionar correctamente.
+Cada una de estas librerías cumple una función específica dentro del proyecto, como crear la API, conectarse 
+a la base de datos, validar información o manejar seguridad.Gracias a este archivo, cualquier persona que quiera
+ ejecutar el proyecto puede instalar todas las dependencias necesarias con un solo comando.
+
+-------------------📁 venv/  --------------------------------------
+
+La carpeta venv corresponde al entorno virtual de Python utilizado por el proyecto.
+Un entorno virtual permite instalar las librerías necesarias para el sistema de forma 
+aislada, sin afectar otras aplicaciones o proyectos que existan en el mismo computador.
+Dentro de esta carpeta se almacenan todas las dependencias instaladas a partir del archivo requirements.txt.
+
+
