@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from app.models.inspeccion_residuos import InspeccionResiduos
-from app.database.session import get_db
-from app.models.area import Area
 
-router = APIRouter(prefix="/areas", tags=["Areas"])
+from app.database.session import get_db
+from app.models.area_sanitaria import AreaSanitaria  # 🔥 CAMBIO
+
+router = APIRouter(prefix="/areas-sanitarias", tags=["Areas Sanitarias"])
 
 
 # =======================
-# ✅ CREAR AREA
+# ✅ CREAR AREA SANITARIA
 # =======================
 @router.post("/")
 def crear_area(data: dict = Body(...), db: Session = Depends(get_db)):
@@ -17,17 +17,23 @@ def crear_area(data: dict = Body(...), db: Session = Depends(get_db)):
     if not nombre:
         raise HTTPException(400, "El nombre es obligatorio")
 
-    existe = db.query(Area).filter(Area.nombre == nombre).first()
+    existe = db.query(AreaSanitaria).filter(
+        AreaSanitaria.nombre == nombre
+    ).first()
+
     if existe:
         raise HTTPException(400, "El área ya existe")
 
-    nueva = Area(nombre=nombre)
+    nueva = AreaSanitaria(nombre=nombre)
 
     db.add(nueva)
     db.commit()
     db.refresh(nueva)
 
-    return {"id": nueva.id, "nombre": nueva.nombre}
+    return {
+        "id": nueva.id,
+        "nombre": nueva.nombre
+    }
 
 
 # =======================
@@ -35,9 +41,17 @@ def crear_area(data: dict = Body(...), db: Session = Depends(get_db)):
 # =======================
 @router.get("/")
 def listar_areas(db: Session = Depends(get_db)):
-    areas = db.query(Area).order_by(Area.nombre.asc()).all()
+    areas = db.query(AreaSanitaria).order_by(
+        AreaSanitaria.nombre.asc()
+    ).all()
 
-    return [{"id": a.id, "nombre": a.nombre} for a in areas]
+    return [
+        {
+            "id": a.id,
+            "nombre": a.nombre
+        }
+        for a in areas
+    ]
 
 
 # =======================
@@ -45,12 +59,17 @@ def listar_areas(db: Session = Depends(get_db)):
 # =======================
 @router.get("/{id}")
 def obtener_area(id: int, db: Session = Depends(get_db)):
-    area = db.query(Area).filter(Area.id == id).first()
+    area = db.query(AreaSanitaria).filter(
+        AreaSanitaria.id == id
+    ).first()
 
     if not area:
         raise HTTPException(404, "Área no encontrada")
 
-    return {"id": area.id, "nombre": area.nombre}
+    return {
+        "id": area.id,
+        "nombre": area.nombre
+    }
 
 
 # =======================
@@ -58,7 +77,9 @@ def obtener_area(id: int, db: Session = Depends(get_db)):
 # =======================
 @router.put("/{id}")
 def actualizar_area(id: int, data: dict = Body(...), db: Session = Depends(get_db)):
-    area = db.query(Area).filter(Area.id == id).first()
+    area = db.query(AreaSanitaria).filter(
+        AreaSanitaria.id == id
+    ).first()
 
     if not area:
         raise HTTPException(404, "Área no encontrada")
@@ -68,9 +89,9 @@ def actualizar_area(id: int, data: dict = Body(...), db: Session = Depends(get_d
     if not nombre:
         raise HTTPException(400, "El nombre es obligatorio")
 
-    existe = db.query(Area).filter(
-        Area.nombre == nombre,
-        Area.id != id
+    existe = db.query(AreaSanitaria).filter(
+        AreaSanitaria.nombre == nombre,
+        AreaSanitaria.id != id
     ).first()
 
     if existe:
@@ -81,7 +102,10 @@ def actualizar_area(id: int, data: dict = Body(...), db: Session = Depends(get_d
     db.commit()
     db.refresh(area)
 
-    return {"id": area.id, "nombre": area.nombre}
+    return {
+        "id": area.id,
+        "nombre": area.nombre
+    }
 
 
 # =======================
@@ -89,18 +113,17 @@ def actualizar_area(id: int, data: dict = Body(...), db: Session = Depends(get_d
 # =======================
 @router.delete("/{id}")
 def eliminar_area(id: int, db: Session = Depends(get_db)):
-    area = db.query(Area).filter(Area.id == id).first()
+    area = db.query(AreaSanitaria).filter(
+        AreaSanitaria.id == id
+    ).first()
 
     if not area:
         raise HTTPException(404, "Área no encontrada")
 
-    # 🔥 ELIMINAR INSPECCIONES RELACIONADAS
-    db.query(InspeccionResiduos).filter(
-        InspeccionResiduos.area_id == id
-    ).delete()
-
-    # 🔥 AHORA SÍ ELIMINAR AREA
     db.delete(area)
     db.commit()
 
-    return {"mensaje": "Área eliminada correctamente"}
+    return {
+        "mensaje": "Área sanitaria eliminada correctamente",
+        "id": id
+    }

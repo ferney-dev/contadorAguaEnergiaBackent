@@ -11,7 +11,7 @@ router = APIRouter(prefix="/comparativoEnergia", tags=["Comparativo Energía"])
 # CREAR
 # ==========================================================
 @router.post("/")
-def crear_comparativo_energia(
+def guardar_comparativo_energia(
     nombre: str = Body(...),
     ubicacion: str = Body(...),
     cuenta: str = Body(...),
@@ -23,26 +23,52 @@ def crear_comparativo_energia(
     db: Session = Depends(get_db)
 ):
     try:
-        nuevo = ComparativoEnergia(
-            nombre=nombre,
-            ubicacion=ubicacion,
-            cuenta=cuenta,
-            anio=anio,
-            mes=mes,
-            kw_consumidos=kw_consumidos,
-            valor_consumo_energia=valor_consumo_energia,
-            cumple=cumple,
-        )
 
-        db.add(nuevo)
-        db.commit()
-        db.refresh(nuevo)
+        # 🔥 BUSCAR SI YA EXISTE
+        registro = db.query(ComparativoEnergia).filter(
+            ComparativoEnergia.nombre == nombre,
+            ComparativoEnergia.anio == anio,
+            ComparativoEnergia.mes == mes
+        ).first()
 
-        return {"mensaje": "Registro creado", "data": nuevo}
+        if registro:
+            # 🔥 UPDATE
+            registro.ubicacion = ubicacion
+            registro.cuenta = cuenta
+            registro.kw_consumidos = kw_consumidos
+            registro.valor_consumo_energia = valor_consumo_energia
+            registro.cumple = cumple
+
+            db.commit()
+            db.refresh(registro)
+
+            return {"mensaje": "Actualizado"}
+
+        else:
+            # 🔥 CREATE
+            nuevo = ComparativoEnergia(
+                nombre=nombre,
+                ubicacion=ubicacion,
+                cuenta=cuenta,
+                anio=anio,
+                mes=mes,
+                kw_consumidos=kw_consumidos,
+                valor_consumo_energia=valor_consumo_energia,
+                cumple=cumple
+            )
+
+            db.add(nuevo)
+            db.commit()
+            db.refresh(nuevo)
+
+            return {"mensaje": "Creado"}
 
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error: {str(e)}"
+        )
 
 
 # ==========================================================
@@ -83,7 +109,10 @@ def actualizar_comparativo_energia(
 
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+    status_code=500,
+    detail=f"Error interno: {str(e) or 'Error desconocido'}"
+)
 
 
 # ==========================================================
@@ -135,4 +164,7 @@ def eliminar_comparativo_energia(comparativo_id: int, db: Session = Depends(get_
 
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+    status_code=500,
+    detail=f"Error interno: {str(e) or 'Error desconocido'}"
+)

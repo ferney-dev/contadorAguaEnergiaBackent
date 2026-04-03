@@ -3,12 +3,12 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from app.database.session import get_db
-from app.models.inspeccion_residuos import InspeccionResiduos
-from app.models.area import Area  # 🔥 IMPORTANTE
+from app.models.inspeccion_energia import InspeccionEnergia  # 🔥 CAMBIO
+from app.models.area import Area
 
 router = APIRouter(
-    prefix="/inspecciones-residuos",
-    tags=["Inspecciones Residuos"]
+    prefix="/inspecciones-energia",
+    tags=["Inspecciones Energia"]
 )
 
 # ======================================================
@@ -16,10 +16,14 @@ router = APIRouter(
 # ======================================================
 def calcular_total(data):
     return (
-        (data.get("reciclables_c") or 0) +
-        (data.get("ordinarios_c") or 0) +
-        (data.get("peligrosos_c") or 0) +
-        (data.get("presintos_c") or 0)
+        (data.get("bombillas_c") or 0) +
+        (data.get("bombillas_nc") or 0) +
+        (data.get("reflectores_c") or 0) +
+        (data.get("reflectores_nc") or 0) +
+        (data.get("lamparas_c") or 0) +
+        (data.get("lamparas_nc") or 0) +
+        (data.get("aires_c") or 0) +
+        (data.get("aires_nc") or 0)
     )
 
 
@@ -33,7 +37,7 @@ def crear_inspeccion(
 ):
     fecha = data.get("fecha")
     responsable = data.get("responsable")
-    area_id = data.get("area_id")  # 🔥 CAMBIO
+    area_id = data.get("area_id")
 
     if not all([fecha, responsable, area_id]):
         raise HTTPException(
@@ -41,7 +45,7 @@ def crear_inspeccion(
             detail="Faltan datos obligatorios"
         )
 
-    # 🔥 VALIDAR QUE EL AREA EXISTE
+    # 🔥 VALIDAR AREA
     area = db.query(Area).filter(Area.id == area_id).first()
 
     if not area:
@@ -52,22 +56,22 @@ def crear_inspeccion(
 
     total = calcular_total(data)
 
-    nueva = InspeccionResiduos(
+    nueva = InspeccionEnergia(
         fecha=fecha,
         responsable=responsable,
-        area_id=area_id,  # 🔥 CAMBIO
+        area_id=area_id,
 
-        reciclables_c=data.get("reciclables_c", 0),
-        reciclables_nc=data.get("reciclables_nc", 0),
+        bombillas_c=data.get("bombillas_c", 0),
+        bombillas_nc=data.get("bombillas_nc", 0),
 
-        ordinarios_c=data.get("ordinarios_c", 0),
-        ordinarios_nc=data.get("ordinarios_nc", 0),
+        reflectores_c=data.get("reflectores_c", 0),
+        reflectores_nc=data.get("reflectores_nc", 0),
 
-        peligrosos_c=data.get("peligrosos_c", 0),
-        peligrosos_nc=data.get("peligrosos_nc", 0),
+        lamparas_c=data.get("lamparas_c", 0),
+        lamparas_nc=data.get("lamparas_nc", 0),
 
-        presintos_c=data.get("presintos_c", 0),
-        presintos_nc=data.get("presintos_nc", 0),
+        aires_c=data.get("aires_c", 0),
+        aires_nc=data.get("aires_nc", 0),
 
         observacion=data.get("observacion"),
         total=total
@@ -78,20 +82,20 @@ def crear_inspeccion(
     db.refresh(nueva)
 
     return {
-        "mensaje": "Inspección creada correctamente",
+        "mensaje": "Inspección de energía creada correctamente",
         "id": nueva.id,
         "total": nueva.total
     }
 
 
 # ======================================================
-# 📄 LISTAR INSPECCIONES
+# 📄 LISTAR
 # ======================================================
 @router.get("/")
 def listar_inspecciones(db: Session = Depends(get_db)):
     registros = (
-        db.query(InspeccionResiduos)
-        .order_by(InspeccionResiduos.fecha.desc())
+        db.query(InspeccionEnergia)
+        .order_by(InspeccionEnergia.fecha.desc())
         .all()
     )
 
@@ -101,19 +105,19 @@ def listar_inspecciones(db: Session = Depends(get_db)):
             "fecha": r.fecha,
             "responsable": r.responsable,
             "area_id": r.area_id,
-            "area": r.area.nombre if r.area else None,  # 🔥 CLAVE
+            "area": r.area.nombre if r.area else None,
 
-            "reciclables_c": r.reciclables_c,
-            "reciclables_nc": r.reciclables_nc,
+            "bombillas_c": r.bombillas_c,
+            "bombillas_nc": r.bombillas_nc,
 
-            "ordinarios_c": r.ordinarios_c,
-            "ordinarios_nc": r.ordinarios_nc,
+            "reflectores_c": r.reflectores_c,
+            "reflectores_nc": r.reflectores_nc,
 
-            "peligrosos_c": r.peligrosos_c,
-            "peligrosos_nc": r.peligrosos_nc,
+            "lamparas_c": r.lamparas_c,
+            "lamparas_nc": r.lamparas_nc,
 
-            "presintos_c": r.presintos_c,
-            "presintos_nc": r.presintos_nc,
+            "aires_c": r.aires_c,
+            "aires_nc": r.aires_nc,
 
             "observacion": r.observacion,
             "total": r.total
@@ -123,14 +127,19 @@ def listar_inspecciones(db: Session = Depends(get_db)):
 
 
 # ======================================================
-# 🔍 OBTENER UNA
+# 🔍 OBTENER UNO
 # ======================================================
 @router.get("/{id}")
 def obtener_inspeccion(id: int, db: Session = Depends(get_db)):
-    r = db.query(InspeccionResiduos).filter(InspeccionResiduos.id == id).first()
+    r = db.query(InspeccionEnergia).filter(
+        InspeccionEnergia.id == id
+    ).first()
 
     if not r:
-        raise HTTPException(status_code=404, detail="Inspección no encontrada")
+        raise HTTPException(
+            status_code=404,
+            detail="Inspección no encontrada"
+        )
 
     return {
         "id": r.id,
@@ -139,75 +148,63 @@ def obtener_inspeccion(id: int, db: Session = Depends(get_db)):
         "area_id": r.area_id,
         "area": r.area.nombre if r.area else None,
 
-        "reciclables_c": r.reciclables_c,
-        "reciclables_nc": r.reciclables_nc,
+        "bombillas_c": r.bombillas_c,
+        "bombillas_nc": r.bombillas_nc,
 
-        "ordinarios_c": r.ordinarios_c,
-        "ordinarios_nc": r.ordinarios_nc,
+        "reflectores_c": r.reflectores_c,
+        "reflectores_nc": r.reflectores_nc,
 
-        "peligrosos_c": r.peligrosos_c,
-        "peligrosos_nc": r.peligrosos_nc,
+        "lamparas_c": r.lamparas_c,
+        "lamparas_nc": r.lamparas_nc,
 
-        "presintos_c": r.presintos_c,
-        "presintos_nc": r.presintos_nc,
+        "aires_c": r.aires_c,
+        "aires_nc": r.aires_nc,
 
         "observacion": r.observacion,
         "total": r.total
     }
 
+    
+
 @router.put("/")
 def actualizar_inspeccion(
+    id: int,
     data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
-    id = data.get("id")
-
-    if not id:
-        raise HTTPException(400, "Falta id")
-
-    registro = db.query(InspeccionResiduos).filter(
-        InspeccionResiduos.id == id
+    registro = db.query(InspeccionEnergia).filter(
+        InspeccionEnergia.id == id
     ).first()
 
     if not registro:
-        raise HTTPException(404, "No existe la inspección")
+        raise HTTPException(
+            status_code=404,
+            detail="No existe la inspección"
+        )
 
-    registro.fecha = data.get("fecha", registro.fecha)
-    registro.responsable = data.get("responsable", registro.responsable)
-    registro.area_id = data.get("area_id", registro.area_id)
+    for key, value in data.items():
+        setattr(registro, key, value)
 
-    registro.reciclables_c = data.get("reciclables_c", 0)
-    registro.reciclables_nc = data.get("reciclables_nc", 0)
-
-    registro.ordinarios_c = data.get("ordinarios_c", 0)
-    registro.ordinarios_nc = data.get("ordinarios_nc", 0)
-
-    registro.peligrosos_c = data.get("peligrosos_c", 0)
-    registro.peligrosos_nc = data.get("peligrosos_nc", 0)
-
-    registro.presintos_c = data.get("presintos_c", 0)
-    registro.presintos_nc = data.get("presintos_nc", 0)
-
-    registro.observacion = data.get("observacion")
-
+    # 🔥 RECALCULAR TOTAL
     registro.total = calcular_total(data)
 
     db.commit()
     db.refresh(registro)
 
     return {
-        "mensaje": "Actualizado correctamente",
+        "mensaje": "Inspección actualizada correctamente",
         "id": registro.id,
         "total": registro.total
     }
+
 
 # ======================================================
 # ❌ ELIMINAR
 # ======================================================
 @router.delete("/{id}")
 def eliminar_inspeccion(id: int, db: Session = Depends(get_db)):
-    registro = db.query(InspeccionResiduos).filter(
-        InspeccionResiduos.id == id
+    registro = db.query(InspeccionEnergia).filter(
+        InspeccionEnergia.id == id
     ).first()
 
     if not registro:
