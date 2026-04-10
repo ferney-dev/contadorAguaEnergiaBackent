@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
-from app.models.inspeccion_agua import InspeccionSanitaria  # 🔥 CAMBIO
-from app.models.area_sanitaria import AreaSanitaria  # 🔥 CAMBIO
+from app.models.inspeccion_agua import InspeccionSanitaria
+from app.models.area_sanitaria import AreaSanitaria
 
 router = APIRouter(
     prefix="/inspecciones-sanitarias",
@@ -16,23 +16,21 @@ router = APIRouter(
 def calcular_total(data):
     return (
         int(data.get("sanitarios_c") or 0) +
-        int(data.get("sanitarios_nc") or 0) +
         int(data.get("orinales_c") or 0) +
-        int(data.get("orinales_nc") or 0) +
         int(data.get("duchas_c") or 0) +
-        int(data.get("duchas_nc") or 0) +
         int(data.get("lavamanos_c") or 0) +
-        int(data.get("lavamanos_nc") or 0) +
-        int(data.get("llaves_c") or 0) +
-        int(data.get("llaves_nc") or 0)
+        int(data.get("llaves_c") or 0)
     )
 
 
 # ======================================================
-# ✅ CREAR INSPECCIÓN
+# 🔥 UPSERT (IGUAL QUE RECICLAJE)
 # ======================================================
 @router.post("/")
-def crear_inspeccion(data: dict = Body(...), db: Session = Depends(get_db)):
+def upsert_inspeccion(
+    data: dict = Body(...),
+    db: Session = Depends(get_db)
+):
     fecha = data.get("fecha")
     responsable = data.get("responsable")
     area_id = data.get("area_id")
@@ -40,33 +38,75 @@ def crear_inspeccion(data: dict = Body(...), db: Session = Depends(get_db)):
     if not all([fecha, responsable, area_id]):
         raise HTTPException(400, "Faltan datos obligatorios")
 
-    # 🔥 VALIDAR AREA SANITARIA
+    # 🔥 VALIDAR ÁREA
     area = db.query(AreaSanitaria).filter(AreaSanitaria.id == area_id).first()
-
     if not area:
         raise HTTPException(404, "El área sanitaria no existe")
 
+    # ======================================================
+    # 🔥 BUSCAR SI YA EXISTE
+    # ======================================================
+    registro = db.query(InspeccionSanitaria).filter(
+        InspeccionSanitaria.fecha == fecha,
+        InspeccionSanitaria.responsable == responsable,
+        InspeccionSanitaria.area_id == area_id
+    ).first()
+
     total = calcular_total(data)
 
+    # ======================================================
+    # ✏️ UPDATE
+    # ======================================================
+    if registro:
+        registro.sanitarios_c = int(data.get("sanitarios_c") or 0)
+        registro.sanitarios_nc = int(data.get("sanitarios_nc") or 0)
+
+        registro.orinales_c = int(data.get("orinales_c") or 0)
+        registro.orinales_nc = int(data.get("orinales_nc") or 0)
+
+        registro.duchas_c = int(data.get("duchas_c") or 0)
+        registro.duchas_nc = int(data.get("duchas_nc") or 0)
+
+        registro.lavamanos_c = int(data.get("lavamanos_c") or 0)
+        registro.lavamanos_nc = int(data.get("lavamanos_nc") or 0)
+
+        registro.llaves_c = int(data.get("llaves_c") or 0)
+        registro.llaves_nc = int(data.get("llaves_nc") or 0)
+
+        registro.observacion = data.get("observacion")
+        registro.total = total
+
+        db.commit()
+        db.refresh(registro)
+
+        return {
+            "mensaje": "Actualizado correctamente",
+            "id": registro.id,
+            "total": registro.total
+        }
+
+    # ======================================================
+    # ➕ CREATE
+    # ======================================================
     nueva = InspeccionSanitaria(
         fecha=fecha,
         responsable=responsable,
         area_id=area_id,
 
         sanitarios_c=int(data.get("sanitarios_c") or 0),
-sanitarios_nc=int(data.get("sanitarios_nc") or 0),
+        sanitarios_nc=int(data.get("sanitarios_nc") or 0),
 
-orinales_c=int(data.get("orinales_c") or 0),
-orinales_nc=int(data.get("orinales_nc") or 0),
+        orinales_c=int(data.get("orinales_c") or 0),
+        orinales_nc=int(data.get("orinales_nc") or 0),
 
-duchas_c=int(data.get("duchas_c") or 0),
-duchas_nc=int(data.get("duchas_nc") or 0),
+        duchas_c=int(data.get("duchas_c") or 0),
+        duchas_nc=int(data.get("duchas_nc") or 0),
 
-lavamanos_c=int(data.get("lavamanos_c") or 0),
-lavamanos_nc=int(data.get("lavamanos_nc") or 0),
+        lavamanos_c=int(data.get("lavamanos_c") or 0),
+        lavamanos_nc=int(data.get("lavamanos_nc") or 0),
 
-llaves_c=int(data.get("llaves_c") or 0),
-llaves_nc=int(data.get("llaves_nc") or 0),
+        llaves_c=int(data.get("llaves_c") or 0),
+        llaves_nc=int(data.get("llaves_nc") or 0),
 
         observacion=data.get("observacion"),
         total=total
@@ -77,7 +117,7 @@ llaves_nc=int(data.get("llaves_nc") or 0),
     db.refresh(nueva)
 
     return {
-        "mensaje": "Inspección sanitaria creada correctamente",
+        "mensaje": "Creado correctamente",
         "id": nueva.id,
         "total": nueva.total
     }
@@ -88,11 +128,7 @@ llaves_nc=int(data.get("llaves_nc") or 0),
 # ======================================================
 @router.get("/")
 def listar_inspecciones(db: Session = Depends(get_db)):
-    registros = (
-        db.query(InspeccionSanitaria)
-        .order_by(InspeccionSanitaria.fecha.desc())
-        .all()
-    )
+    registros = db.query(InspeccionSanitaria).all()
 
     return [
         {
@@ -125,97 +161,7 @@ def listar_inspecciones(db: Session = Depends(get_db)):
 
 
 # ======================================================
-# 🔍 OBTENER UNA
-# ======================================================
-@router.get("/{id}")
-def obtener_inspeccion(id: int, db: Session = Depends(get_db)):
-    r = db.query(InspeccionSanitaria).filter(
-        InspeccionSanitaria.id == id
-    ).first()
-
-    if not r:
-        raise HTTPException(404, "Inspección no encontrada")
-
-    return {
-        "id": r.id,
-        "fecha": r.fecha,
-        "responsable": r.responsable,
-        "area_id": r.area_id,
-        "area": r.area.nombre if r.area else None,
-
-        "sanitarios_c": r.sanitarios_c,
-        "sanitarios_nc": r.sanitarios_nc,
-
-        "orinales_c": r.orinales_c,
-        "orinales_nc": r.orinales_nc,
-
-        "duchas_c": r.duchas_c,
-        "duchas_nc": r.duchas_nc,
-
-        "lavamanos_c": r.lavamanos_c,
-        "lavamanos_nc": r.lavamanos_nc,
-
-        "llaves_c": r.llaves_c,
-        "llaves_nc": r.llaves_nc,
-
-        "observacion": r.observacion,
-        "total": r.total
-    }
-
-# ======================================================
-# ✏️ ACTUALIZAR INSPECCIÓN
-# ======================================================
-@router.put("/")
-def actualizar_inspeccion(data: dict = Body(...), db: Session = Depends(get_db)):
-
-    id = data.get("id")
-
-    if not id:
-        raise HTTPException(status_code=400, detail="Falta id")
-
-    registro = db.query(InspeccionSanitaria).filter(
-        InspeccionSanitaria.id == id
-    ).first()
-
-    if not registro:
-        raise HTTPException(status_code=404, detail="No existe la inspección")
-
-    # 🔥 ACTUALIZAR CAMPOS
-    registro.fecha = data.get("fecha", registro.fecha)
-    registro.responsable = data.get("responsable", registro.responsable)
-    registro.area_id = data.get("area_id", registro.area_id)
-
-    registro.sanitarios_c = int(data.get("sanitarios_c") or 0)
-    registro.sanitarios_nc = int(data.get("sanitarios_nc") or 0)
-
-    registro.orinales_c = int(data.get("orinales_c") or 0)
-    registro.orinales_nc = int(data.get("orinales_nc") or 0)
-
-    registro.duchas_c = int(data.get("duchas_c") or 0)
-    registro.duchas_nc = int(data.get("duchas_nc") or 0)
-
-    registro.lavamanos_c = int(data.get("lavamanos_c") or 0)
-    registro.lavamanos_nc = int(data.get("lavamanos_nc") or 0)
-
-    registro.llaves_c = int(data.get("llaves_c") or 0)
-    registro.llaves_nc = int(data.get("llaves_nc") or 0)
-
-    registro.observacion = data.get("observacion", "")
-
-    # 🔥 recalcular total
-    registro.total = calcular_total(data)
-
-    db.commit()
-    db.refresh(registro)
-
-    return {
-        "mensaje": "Inspección actualizada correctamente",
-        "id": registro.id,
-        "total": registro.total
-    }
-
-# ======================================================
-# ❌ ELIMINAR
+# ❌ DELETE
 # ======================================================
 @router.delete("/{id}")
 def eliminar_inspeccion(id: int, db: Session = Depends(get_db)):
@@ -230,6 +176,5 @@ def eliminar_inspeccion(id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {
-        "mensaje": "Inspección sanitaria eliminada correctamente",
-        "id": id
+        "mensaje": "Eliminado correctamente"
     }

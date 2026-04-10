@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
+from datetime import datetime
 from app.database.session import get_db
 from app.models.tonner import Tonner
 
@@ -7,10 +8,32 @@ router = APIRouter(prefix="/tonners", tags=["Tonners"])
 
 
 # =======================
+# 🔧 SERIALIZADOR (CLAVE)
+# =======================
+def tonner_to_dict(t):
+    return {
+        "id": t.id,
+        "area_id": t.area_id,
+        "responsable": t.responsable,
+        "modelo_tonner": t.modelo_tonner,
+        "modelo_impresora": t.modelo_impresora,
+        "cantidad": t.cantidad,
+        "fecha": t.fecha,
+
+        # 🔥 AQUÍ ESTÁ LA SOLUCIÓN
+        "created_at": t.created_at.isoformat() if t.created_at else None,
+        "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+    }
+
+
+# =======================
 # ✅ CREAR O ACTUALIZAR
 # =======================
 @router.post("/")
-def crear_o_actualizar_tonner(data: dict = Body(...), db: Session = Depends(get_db)):
+def crear_o_actualizar_tonner(
+    data: dict = Body(...),
+    db: Session = Depends(get_db)
+):
 
     area_id = data.get("area_id")
     modelo_tonner = data.get("modelo_tonner")
@@ -19,25 +42,30 @@ def crear_o_actualizar_tonner(data: dict = Body(...), db: Session = Depends(get_
     if not area_id or not modelo_tonner or not fecha:
         raise HTTPException(400, "Faltan datos obligatorios")
 
-    # 🔥 BUSCAR SI YA EXISTE
     registro = db.query(Tonner).filter(
         Tonner.area_id == area_id,
         Tonner.modelo_tonner == modelo_tonner,
         Tonner.fecha == fecha
     ).first()
 
-    # 🔥 SI EXISTE → ACTUALIZA
+    # 🔥 ACTUALIZA
     if registro:
         registro.responsable = data.get("responsable", registro.responsable)
         registro.modelo_impresora = data.get("modelo_impresora", registro.modelo_impresora)
         registro.cantidad = data.get("cantidad", registro.cantidad)
 
+        # 🔥 FORZAR ACTUALIZACIÓN DE FECHA
+        registro.updated_at = datetime.now()
+
         db.commit()
         db.refresh(registro)
 
-        return {"mensaje": "Registro actualizado"}
+        return {
+            "mensaje": "Registro actualizado",
+            "data": tonner_to_dict(registro)
+        }
 
-    # 🔥 SI NO EXISTE → CREA
+    # 🔥 CREA
     nuevo = Tonner(
         area_id=area_id,
         responsable=data.get("responsable"),
@@ -51,7 +79,10 @@ def crear_o_actualizar_tonner(data: dict = Body(...), db: Session = Depends(get_
     db.commit()
     db.refresh(nuevo)
 
-    return {"mensaje": "Registro creado"}
+    return {
+        "mensaje": "Registro creado",
+        "data": tonner_to_dict(nuevo)
+    }
 
 
 # =======================
@@ -64,27 +95,23 @@ def listar_tonners(
 ):
     query = db.query(Tonner)
 
-    # 🔥 FILTRO OPCIONAL POR FECHA
     if fecha:
         query = query.filter(Tonner.fecha == fecha)
 
     data = query.all()
 
-    return [
-        {
-            "id": t.id,
-            "area_id": t.area_id,
-            "responsable": t.responsable,
-            "modelo_tonner": t.modelo_tonner,
-            "modelo_impresora": t.modelo_impresora,
-            "cantidad": t.cantidad,
-            "fecha": t.fecha,
-        }
-        for t in data
-    ]
-    
+    return [tonner_to_dict(t) for t in data]
+
+
+# =======================
+# ✏️ ACTUALIZAR
+# =======================
 @router.put("/{id}")
-def actualizar_tonner(id: int, data: dict = Body(...), db: Session = Depends(get_db)):
+def actualizar_tonner(
+    id: int,
+    data: dict = Body(...),
+    db: Session = Depends(get_db)
+):
     registro = db.query(Tonner).filter(Tonner.id == id).first()
 
     if not registro:
@@ -97,12 +124,20 @@ def actualizar_tonner(id: int, data: dict = Body(...), db: Session = Depends(get
     registro.cantidad = data.get("cantidad", registro.cantidad)
     registro.fecha = data.get("fecha", registro.fecha)
 
+    # 🔥 CLAVE
+    registro.updated_at = datetime.now()
+
     db.commit()
     db.refresh(registro)
 
-    return {"mensaje": "Actualizado correctamente"}
+    return {
+        "mensaje": "Actualizado correctamente",
+        "data": tonner_to_dict(registro)
+    }
+
+
 # =======================
-# ❌ ELIMINAR TONNER
+# ❌ ELIMINAR
 # =======================
 @router.delete("/{id}")
 def eliminar_tonner(id: int, db: Session = Depends(get_db)):
