@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 
@@ -47,8 +49,17 @@ def upsert_inspeccion(
     # ======================================================
     # 🔥 BUSCAR SI YA EXISTE
     # ======================================================
+    def obtener_inicio_semana(fecha_str):
+        fecha_dt = datetime.strptime(str(fecha_str), "%Y-%m-%d")
+        inicio = fecha_dt - timedelta(days=fecha_dt.weekday())
+        return inicio.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    semana_inicio = obtener_inicio_semana(fecha)
+    semana_fin = semana_inicio + timedelta(days=7)
+
     registro = db.query(InspeccionSanitaria).filter(
-        InspeccionSanitaria.fecha == fecha,
+        InspeccionSanitaria.fecha >= semana_inicio,
+        InspeccionSanitaria.fecha < semana_fin,
         InspeccionSanitaria.responsable == responsable,
         InspeccionSanitaria.area_id == area_id
     ).first()
@@ -172,9 +183,18 @@ def eliminar_inspeccion_sanitaria(data: dict = Body(...), db: Session = Depends(
     if not responsable or not fecha:
         raise HTTPException(400, "Faltan datos")
 
+    def obtener_inicio_semana(fecha_str):
+        fecha_dt = datetime.strptime(str(fecha_str), "%Y-%m-%d")
+        inicio = fecha_dt - timedelta(days=fecha_dt.weekday())
+        return inicio.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    semana_inicio = obtener_inicio_semana(fecha)
+    semana_fin = semana_inicio + timedelta(days=7)
+
     registros = db.query(InspeccionSanitaria).filter(
         InspeccionSanitaria.responsable == responsable,
-        func.date(InspeccionSanitaria.fecha) == fecha
+        InspeccionSanitaria.fecha >= semana_inicio,
+        InspeccionSanitaria.fecha < semana_fin
     ).all()
 
     if not registros:

@@ -1,6 +1,7 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from datetime import datetime
 from sqlalchemy import func
 
 from app.database.session import get_db
@@ -46,8 +47,17 @@ def upsert_inspeccion(
     # ======================================================
     # 🔥 BUSCAR SI YA EXISTE (CLAVE REAL DEL SISTEMA)
     # ======================================================
+    def obtener_inicio_semana(fecha_str):
+        fecha_dt = datetime.strptime(str(fecha_str), "%Y-%m-%d")
+        inicio = fecha_dt - timedelta(days=fecha_dt.weekday())
+        return inicio.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    semana_inicio = obtener_inicio_semana(fecha)
+    semana_fin = semana_inicio + timedelta(days=7)
+
     registro = db.query(InspeccionResiduos).filter(
-        InspeccionResiduos.fecha == fecha,
+        InspeccionResiduos.fecha >= semana_inicio,
+        InspeccionResiduos.fecha < semana_fin,
         InspeccionResiduos.responsable == responsable,
         InspeccionResiduos.area_id == area_id
     ).first()
@@ -160,9 +170,18 @@ def eliminar_inspeccion(data: dict = Body(...), db: Session = Depends(get_db)):
     if not responsable or not fecha:
         raise HTTPException(400, "Faltan datos")
 
+    def obtener_inicio_semana(fecha_str):
+        fecha_dt = datetime.strptime(str(fecha_str), "%Y-%m-%d")
+        inicio = fecha_dt - timedelta(days=fecha_dt.weekday())
+        return inicio.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    semana_inicio = obtener_inicio_semana(fecha)
+    semana_fin = semana_inicio + timedelta(days=7)
+
     registros = db.query(InspeccionResiduos).filter(
         InspeccionResiduos.responsable == responsable,
-        func.date(InspeccionResiduos.fecha) == fecha
+        InspeccionResiduos.fecha >= semana_inicio,
+        InspeccionResiduos.fecha < semana_fin
     ).all()
 
     for r in registros:
